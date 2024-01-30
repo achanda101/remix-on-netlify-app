@@ -1,53 +1,49 @@
-export function headers({
-  loaderHeaders,
-  parentHeaders,
-}: {
-  loaderHeaders: Headers;
-  parentHeaders: Headers;
-}) {
-  console.log(
-    "This is an example of how to set caching headers for a route, feel free to change the value of 60 seconds or remove the header"
-  );
-  return {
-    // This is an example of how to set caching headers for a route
-    // For more info on headers in Remix, see: https://remix.run/docs/en/v1/route/headers
-    "Cache-Control": "public, max-age=60, s-maxage=60",
-  };
+import { useLoaderData, type MetaFunction } from '@remix-run/react'
+import { useQuery } from '@sanity/react-loader'
+import Card from '~/components/Card'
+import Welcome from '~/components/Welcome'
+import { loadQuery } from '~/sanity/loader.server'
+import { POSTS_QUERY } from '~/sanity/queries'
+import { Post } from '~/sanity/types'
+
+export const meta: MetaFunction = () => {
+  return [{ title: 'New Remix App' }]
+}
+
+export const loader = async () => {
+  const initial = await loadQuery<Post[]>(POSTS_QUERY)
+
+  return { initial, query: POSTS_QUERY, params: {} }
 }
 
 export default function Index() {
+  const { initial, query, params } = useLoaderData<typeof loader>()
+  const { data, loading, error, encodeDataAttribute } = useQuery<
+    typeof initial.data
+  >(query, params, {
+    // @ts-expect-error -- TODO fix the typing here
+    initial,
+  })
+
+  if (error) {
+    throw error
+  } else if (loading && !data) {
+    return <div>Loading...</div>
+  }
+
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", lineHeight: "1.4" }}>
-      <h1>Welcome to Remix</h1>
-      <ul>
-        <li>
-          <a
-            target="_blank"
-            href="https://remix.run/tutorials/blog"
-            rel="noreferrer noopener"
-          >
-            15m Quickstart Blog Tutorial
-          </a>
-        </li>
-        <li>
-          <a
-            target="_blank"
-            href="https://remix.run/tutorials/jokes"
-            rel="noreferrer noopener"
-          >
-            Deep Dive Jokes App Tutorial
-          </a>
-        </li>
-        <li>
-          <a
-            target="_blank"
-            href="https://remix.run/docs"
-            rel="noreferrer noopener"
-          >
-            Remix Docs
-          </a>
-        </li>
-      </ul>
-    </main>
-  );
+    <section>
+      {data?.length ? (
+        data.map((post, i) => (
+          <Card
+            key={post._id}
+            post={post}
+            encodeDataAttribute={encodeDataAttribute.scope([i])}
+          />
+        ))
+      ) : (
+        <Welcome />
+      )}
+    </section>
+  )
 }
